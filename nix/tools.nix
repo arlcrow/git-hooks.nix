@@ -33,6 +33,7 @@
 , flake-checker ? placeholder "flake-checker"
 , fprettify
 , git-annex
+, gitleaks
 , gitlint
 , gptcommit ? placeholder "gptcommit"
 , hadolint
@@ -141,6 +142,7 @@ in
     elixir
     flake-checker
     fprettify
+    gitleaks
     git-annex
     gitlint
     go
