@@ -21,6 +21,7 @@
 , conform
 , convco
 , crystal
+, cue
 , dart
 , deadnix
 , deno
@@ -53,6 +54,7 @@
 , mdsh
 , nbstripout
 , nil
+, nixf-diagnose
 , nixfmt
 , nixfmt-classic ? placeholder "nixfmt-classic"
 , nixfmt-rfc-style ? placeholder "nixfmt-rfc-style"
@@ -133,6 +135,7 @@ in
     conform
     convco
     crystal
+    cue
     dart
     deadnix
     deno
@@ -162,6 +165,7 @@ in
     mdsh
     nbstripout
     nil
+    nixf-diagnose
     nixpkgs-fmt
     opam
     opentofu

@@ -972,6 +972,12 @@ in
           imports = [ hookModule ];
         };
       };
+      nixf-diagnose = mkOption {
+        description = "nixf-diagnose hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+        };
+      };
       nixfmt = mkOption {
         description = "nixfmt hook";
         type = types.submodule {
@@ -1782,9 +1788,9 @@ in
 
             ignore =
               mkOption {
-                type = types.listOf types.str;
+                type = types.nullOr (types.listOf types.str);
                 description = "Globs of file patterns to skip.";
-                default = [ ];
+                default = null;
                 example = [ "flake.nix" "_*" ];
               };
 
@@ -2661,6 +2667,13 @@ in
         entry = "${hooks.crystal.package}/bin/crystal tool format";
         files = "\\.cr$";
       };
+      cue-fmt = {
+        name = "cue fmt";
+        description = "Format CUE files";
+        package = tools.cue;
+        entry = "${hooks.cue-fmt.package}/bin/cue fmt";
+        files = "\\.cue$";
+      };
       cspell =
         {
           name = "cspell";
@@ -2879,7 +2892,7 @@ in
       fix-encoding-pragma =
         {
           name = "fix-encoding-pragma";
-          description = "Adds \# -*- coding: utf-8 -*- to the top of Python files.'";
+          description = "Adds # -*- coding: utf-8 -*- to the top of Python files.'";
           package = tools.pre-commit-hooks;
           entry = "${hooks.fix-encoding-pragma.package}/bin/fix-encoding-pragma";
           types = [ "python" ];
@@ -3452,7 +3465,7 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
           description = "Verify that Python test files are named correctly.";
           package = tools.pre-commit-hooks;
           entry = "${hooks.name-tests-test.package}/bin/tests_should_end_in_test.py";
-          files = "(^|/)tests/\.+\\.py$";
+          files = "(^|/)tests/.+\\.py$";
         };
       nbstripout =
         {
@@ -3487,6 +3500,14 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
               '';
             in
             builtins.toString script;
+          files = "\\.nix$";
+        };
+      nixf-diagnose =
+        {
+          name = "nixf-diagnose";
+          description = "wrapper for nixf-tidy.";
+          package = tools.nixf-diagnose;
+          entry = "${hooks.nixf-diagnose.package}/bin/nixf-diagnose";
           files = "\\.nix$";
         };
       nixfmt =
@@ -3956,10 +3977,10 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
             let
               inherit (hooks) rustfmt;
               inherit (rustfmt) settings;
-              cargoArgs = lib.cli.toGNUCommandLineShell { } {
+              cargoArgs = lib.cli.toCommandLineShellGNU { } {
                 inherit (settings) all package verbose manifest-path;
               };
-              rustfmtArgs = lib.cli.toGNUCommandLineShell { } {
+              rustfmtArgs = lib.cli.toCommandLineShellGNU { } {
                 inherit (settings) check emit config-path color files-with-diff config verbose;
               };
             in
@@ -4071,19 +4092,21 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
           entry =
             let
               inherit (hooks.statix) package settings;
-              mkOptionName = k:
-                if builtins.stringLength k == 1
-                then "-${k}"
-                else "--${k}";
-              options = lib.cli.toGNUCommandLineShell
-                {
-                  # instead of repeating the option name for each element,
-                  # create a single option with a space-separated list of unique values.
-                  mkList = k: v: if v == [ ] then [ ] else [ (mkOptionName k) ] ++ lib.unique v;
-                }
-                settings;
+              optionFormat = optionName: {
+                option = "--${optionName}";
+                sep = null;
+                explicitBool = false;
+              };
+              options = lib.cli.toCommandLine
+                optionFormat
+                (lib.mapAttrs
+                  (_: v:
+                    if builtins.isList v
+                    then builtins.concatStringsSep " " (lib.unique v)
+                    else v)
+                  settings);
             in
-            "${package}/bin/statix check ${options}";
+            "${package}/bin/statix check ${toString options}";
           files = "\\.nix$";
           pass_filenames = false;
         };
