@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: cachix/install-nix-action@v31
     - uses: cachix/cachix-action@v16
       with:
@@ -31,7 +31,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: cachix/install-nix-action@v31
     - uses: cachix/cachix-action@v16
       with:
@@ -51,7 +51,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: cachix/install-nix-action@v31
     - uses: cachix/cachix-action@v16
       with:
@@ -61,4 +61,4 @@ jobs:
 
     - name: Check nixpkgs-stable
       working-directory: ./dev
-      run: nix flake check -L --show-trace --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.05
+      run: nix flake check -L --show-trace --override-input git-hooks/nixpkgs github:NixOS/nixpkgs/nixos-25.11

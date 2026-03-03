@@ -72,6 +72,7 @@
 , pyright ? nodePackages.pyright
 , phpPackages
 , ripsecrets ? placeholder "ripsecrets"
+, regal
 , reuse
 , ruff ? placeholder "ruff"
 , rumdl ? placeholder "rumdl"
@@ -174,6 +175,7 @@ in
     poetry
     proselint
     pyright
+    regal
     reuse
     revive
     ripsecrets

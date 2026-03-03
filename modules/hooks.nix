@@ -67,6 +67,10 @@ in
   config.hookModule = {
     imports = [ ./hook.nix ];
     config._module.args.default_stages = cfg.default_stages;
+    config._module.args.default_language =
+      if cfg.package.pname or "" == "pre-commit" && lib.versionAtLeast (cfg.package.version or "0") "4.4.0"
+      then "unsupported"
+      else "system";
   };
   config._module.args.hookModule = config.hookModule;
 
@@ -972,6 +976,19 @@ in
           imports = [ hookModule ];
         };
       };
+      nil = mkOption {
+        description = "nil hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = {
+            denyWarnings = mkOption {
+              type = types.bool;
+              description = "Treat warnings like errors and exit with non-zero code";
+              default = false;
+            };
+          };
+        };
+      };
       nixf-diagnose = mkOption {
         description = "nixf-diagnose hook";
         type = types.submodule {
@@ -1545,6 +1562,20 @@ in
           };
         };
       };
+      regal = mkOption {
+        description = "regal hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = {
+            flags = mkOption {
+              type = types.str;
+              description = "Flags passed to regal. For available options run 'regal lint --help'";
+              default = "";
+              example = "--disable-category style";
+            };
+          };
+        };
+      };
       reuse = mkOption {
         description = "reuse hook";
         type = types.submodule {
@@ -1759,10 +1790,45 @@ in
         type = types.submodule {
           imports = [ hookModule ];
           options.settings = {
+            language-dialect = mkOption {
+              type = types.nullOr (types.enum [ "auto" "bash" "posix" "mksh" "bats" ]);
+              description = "Shell language dialect.";
+              default = "auto";
+            };
             simplify = mkOption {
               type = types.bool;
               description = "Simplify the code.";
               default = true;
+            };
+            indent = mkOption {
+              type = types.nullOr (types.oneOf [ types.int types.str ]);
+              description = "0 for tabs, >0 for number of spaces.";
+              default = null;
+            };
+            binary-next-line = mkOption {
+              type = types.bool;
+              description = "Binary ops like && and | may start a line.";
+              default = false;
+            };
+            case-indent = mkOption {
+              type = types.bool;
+              description = "Switch cases will be indented.";
+              default = false;
+            };
+            space-redirects = mkOption {
+              type = types.bool;
+              description = "Redirect operators will be followed by a space.";
+              default = false;
+            };
+            keep-padding = mkOption {
+              type = types.bool;
+              description = "Keep column alignment paddings.";
+              default = false;
+            };
+            func-next-line = mkOption {
+              type = types.bool;
+              description = "Function opening braces are placed on a separate line.";
+              default = false;
             };
           };
         };
@@ -3482,11 +3548,14 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
           package = tools.nil;
           entry =
             let
+              cmdArgs = mkCmdArgs (with hooks.nil.settings; [
+                [ denyWarnings "--deny-warnings" ]
+              ]);
               script = pkgs.writeShellScript "precommit-nil" ''
                 errors=false
                 echo Checking: $@
                 for file in $(echo "$@"); do
-                  ${hooks.nil.package}/bin/nil diagnostics "$file"
+                  ${hooks.nil.package}/bin/nil diagnostics ${cmdArgs} "$file"
                   exit_code=$?
 
                   if [[ $exit_code -ne 0 ]]; then
@@ -3847,6 +3916,15 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
           entry = migrateBinPathToPackage hooks.pyupgrade "/bin/pyupgrade";
           types = [ "python" ];
         };
+      regal =
+        {
+          name = "regal";
+          description = "A linter for Rego policies";
+          package = tools.regal;
+          entry = "${hooks.regal.package}/bin/regal lint ${hooks.regal.settings.flags}";
+          files = "\\.rego$";
+          pass_filenames = true;
+        };
       reuse =
         {
           name = "reuse";
@@ -4012,9 +4090,20 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.fourm
           package = tools.shfmt;
           entry =
             let
-              simplify = if hooks.shfmt.settings.simplify then "-s" else "";
+              cmdArgs =
+                mkCmdArgs
+                  (with hooks.shfmt.settings; [
+                    [ (language-dialect != null) "-ln ${language-dialect}" ]
+                    [ simplify "-s" ]
+                    [ (indent != null) "-i ${builtins.toString indent}" ]
+                    [ binary-next-line "-bn" ]
+                    [ case-indent "-ci" ]
+                    [ space-redirects "-sr" ]
+                    [ keep-padding "-kp" ]
+                    [ func-next-line "-fn" ]
+                  ]);
             in
-            "${hooks.shfmt.package}/bin/shfmt -w -l ${simplify}";
+            "${hooks.shfmt.package}/bin/shfmt -w -l ${cmdArgs}";
         };
       single-quoted-strings =
         {

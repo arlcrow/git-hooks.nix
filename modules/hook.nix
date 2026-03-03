@@ -1,4 +1,4 @@
-{ config, name, lib, default_stages, ... }:
+{ config, name, lib, default_stages, default_language, ... }:
 
 let
   inherit (lib) concatStringsSep mkOption types;
@@ -107,8 +107,17 @@ in
       description =
         ''
           The language of the hook - tells pre-commit how to install the hook.
+
+          Defaults to `"system"`, or `"unsupported"` when using pre-commit >= 4.4.0.
+
+          Note: `"unsupported"` does not mean deprecated.
+          Pre-commit >= 4.4.0 renamed `"system"` to `"unsupported"` because
+          when using this language pre-commit does not provision the tools, and using externally
+          managed tools (e.g. via Nix) is not an officially supported workflow.
+          Both values are functionally equivalent.
         '';
-      default = "system";
+      default = default_language;
+      defaultText = lib.literalExpression ''"system" or "unsupported" depending on pre-commit version'';
     };
 
     files = mkOption {
@@ -231,6 +240,17 @@ in
         '';
       default = [ ];
     };
+
+    priority = mkOption {
+      type = types.nullOr types.ints.u32;
+      description = ''
+        Defines the order in which the hooks are executed. Default priority is set by the order in the list of hooks.
+        Evaluation goes from 0 and up.
+        If two hooks have the same priority, they’ll run in parallel.
+        This works only if cfg.package is set to prek.
+      '';
+      default = null;
+    };
   };
 
   config = {
@@ -238,6 +258,7 @@ in
       {
         inherit (config) id name entry language files types types_or exclude_types pass_filenames fail_fast require_serial stages verbose always_run args;
         exclude = mergeExcludes config.excludes;
+        priority = lib.mkIf (config.priority != null) config.priority;
       };
   };
 }
